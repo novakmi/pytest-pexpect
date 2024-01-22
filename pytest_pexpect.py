@@ -1,12 +1,16 @@
 import logging
 import os
+import time
 
 import pexpect
+import pytest
 
-logging.basicConfig(
-    format='%(asctime)s:%(relativeCreated)s %(levelname)s:%(filename)s:%(lineno)s:%(funcName)s  %(message)s',
-    level=logging.INFO)
-log = logging.getLogger('pytest-expect')
+log = logging.getLogger('pytes-expect-dummy-logger')
+# logging.basicConfig(
+#     format='%(asctime)s:%(relativeCreated)s %(levelname)s:%(filename)s:%(lineno)s:%(funcName)s  %(message)s',
+#     level=logging.INFO)
+# log = logging.getLogger('pytest-expect')
+debug_sleep = False
 
 
 def __str__(self):
@@ -114,3 +118,104 @@ def pexpect_shell(name, logfile_path=None, cd_to_dir=".", env=None):
         shell.sendline(env)
         expect_prompt(shell)
     return shell
+
+
+def do_sleep(t, text=None):
+    logtext = ""
+    if text is not None:
+        logtext = "(" + text + ") "
+    log.debug("    sleep %d sec %s...", t, logtext)
+    if debug_sleep:
+        n = t / 5  # 1 dot every 5 sec.
+        t2 = t % 5
+        import sys
+        for i in range(n):
+            time.sleep(5)
+            sys.stdout.write(".")
+            sys.stdout.flush()
+        time.sleep(t2)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        time.sleep(t)
+
+class Pexpect(object):
+
+    def __init__(self, shell = None, sh_name=None):
+        log.debug("==> Pexpect __init__ shell=%r sh_name=%s" % (shell, sh_name))
+        self.shell = shell
+        self.sh_name = sh_name
+        self._debug = False
+        log.debug("<==")
+
+    def __getattr__(self, attr):
+        log.debug("==> __getattr__ %s" % (attr))
+        shell = self.shell
+        if attr == "s":
+            attr = "sendline"
+            shell = self
+        if attr == "e":
+            attr = "expect"
+            shell = self
+        log.debug("<== attr %s" % (attr))
+        return getattr(shell, attr) if shell is not None else "shell is None!"
+
+    def expect(self, pattern, timeout=-1, searchwindowsize=-1, async_=False,
+               fail_on=None, **kw):
+        log.debug("==> expect %s", pattern)
+        if self._debug:
+            log.debug("    %s.expect: \"%s\"", self.sh_name, pattern)
+        ret = 0
+        if not pytest.config.dryrun:
+            if fail_on is not None:
+                assert isinstance(fail_on, list)
+                pattern = [pattern] if not isinstance(pattern, list) else pattern
+                lst_pattern = [pattern] + fail_on
+                res = self.shell.expect(lst_pattern, timeout=timeout,
+                                        searchwindowsize=searchwindowsize,
+                                        async_=async_, **kw)
+                if res >= len(pattern):
+                    pytest.fail("Received forbidden value %s, expected %s",
+                    lst_pattern[res], lst_pattern[0])
+            else:
+                ret = self.shell.expect(pattern, timeout=timeout,
+                                        searchwindowsize=searchwindowsize,
+                                        async_=async_, **kw)
+        log.debug("<== expect %s", pattern)
+        return ret
+
+    def close(self, force=True):
+        if not pytest.config.dryrun and self.shell is not None:
+            try:
+                self.shell.close(force)
+            except:
+                log.debug("    trying once more after 10 seconds...")
+                do_sleep(10)
+                try:
+                    self.shell.close(force)
+                except:
+                    log.warning("Failed to close shell, IGNORING!")
+
+    def send(self, s=''):
+        log.debug("==> send %s", s)
+        if self._debug:
+            log.debug("    send: \"%s\"", self.sh_name )
+        ret =  self.shell.send(s)
+        log.debug("<== ret %s", ret)
+        return ret
+
+    def sendline(self, s=''):
+        log.debug("==> sendline %s", s)
+        #if "cli" in self.sh_name and self._debug:
+        if self._debug:
+            log.debug("    sendline: \"%s\"", self.sh_name)
+        ret = self.shell.sendline(s)
+        return ret
+
+    def sendcontrol(self, char):
+        if not pytest.config.dryrun:
+            self.shell.sendcontrol(char)
+
+    def flush(self):
+        if not pytest.config.dryrun:
+            self.shell.flush()
