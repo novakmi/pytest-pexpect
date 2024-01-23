@@ -5,11 +5,7 @@ import time
 import pexpect
 import pytest
 
-log = logging.getLogger('pytes-expect-dummy-logger')
-# logging.basicConfig(
-#     format='%(asctime)s:%(relativeCreated)s %(levelname)s:%(filename)s:%(lineno)s:%(funcName)s  %(message)s',
-#     level=logging.INFO)
-# log = logging.getLogger('pytest-expect')
+log = logging.getLogger(__name__)
 debug_sleep = False
 
 
