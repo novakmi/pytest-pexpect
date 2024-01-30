@@ -142,7 +142,11 @@ class Pexpect(object):
         self.shell = shell
         self.sh_name = sh_name
         self._debug = False
+        self.dry_run = False
         log.debug("<==")
+
+    def make_shell(self, name, logfile_path=None, cd_to_dir=".", env=None):
+        self.shell = pexpect_shell(name, logfile_path, cd_to_dir=cd_to_dir, env=env)
 
     def __getattr__(self, attr):
         log.debug("==> __getattr__ %s" % (attr))
@@ -162,7 +166,7 @@ class Pexpect(object):
         if self._debug:
             log.debug("    %s.expect: \"%s\"", self.sh_name, pattern)
         ret = 0
-        if not pytest.config.dryrun:
+        if not self.dry_run:
             if fail_on is not None:
                 assert isinstance(fail_on, list)
                 pattern = [pattern] if not isinstance(pattern, list) else pattern
@@ -181,7 +185,7 @@ class Pexpect(object):
         return ret
 
     def close(self, force=True):
-        if not pytest.config.dryrun and self.shell is not None:
+        if not self.dry_run and self.shell is not None:
             try:
                 self.shell.close(force)
             except:
@@ -209,9 +213,9 @@ class Pexpect(object):
         return ret
 
     def sendcontrol(self, char):
-        if not pytest.config.dryrun:
+        if not self.dry_run:
             self.shell.sendcontrol(char)
 
     def flush(self):
-        if not pytest.config.dryrun:
+        if not self.dry_run:
             self.shell.flush()
