@@ -1,0 +1,17 @@
+= pytest-pexpect
+
+Pytest pexpect plugin.
+
+== Usage
+
+Add `pytest-pexpect` to  `PYTHONPATH`.
+
+Add into `conftest.py` line  `pytest_plugins: str = ("pytest_pexpect")` or
+add into `pytest.ini` lines
+
+----
+[pytest]
+addopts = -p pytest_pexpect
+----
+
+Find if plugin is active: `pytest --trace-config`
