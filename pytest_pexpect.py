@@ -58,39 +58,14 @@ class Pexpect(object):
         return '\n'.join(s)
 
     @staticmethod
-    def nodeid_to_path(node_id):
-        log.debug("==> node_id_to_path node_id=%s" % node_id)
+    def __nodeid_to_path(node_id):
+        log.debug("==> __node_id_to_path node_id=%s" % node_id)
         node_id = node_id.replace("(", "")
         node_id = node_id.replace(")", "")
         node_id = node_id.replace("::", "_")
         node_id = node_id.replace("/", "_")
-        log.debug("<== node_id_to_path node_id=%s" % node_id)
+        log.debug("<== __node_id_to_path node_id=%s" % node_id)
         return node_id
-
-    @staticmethod
-    def make_tst_dir(path):
-        tst_dir = Pexpect.get_tst_dir(path)
-        if not os.path.exists(tst_dir):
-            os.makedirs(tst_dir)
-
-    @staticmethod
-    def write_file_to_tst_dir(name, path, text):
-        file = open(f"{Pexpect.get_tst_dir(path)}/{name}", "w")
-        file.write(text)
-        file.close()
-
-    @staticmethod
-    def get_tst_dir(path):
-        tst_dir = f"logs/{path}" if path else "logs"
-        return tst_dir
-
-    @staticmethod
-    def open_log_file(name, path=None):
-        Pexpect.make_tst_dir(path)
-        logname = f"{Pexpect.get_tst_dir(path)}/{name}.log"
-        log.debug("Using logname %s" % logname)
-        logf = open(logname, 'w')
-        return logf
 
     @staticmethod
     def _sleep(t, text=None, dry_run=False):
@@ -136,53 +111,75 @@ class Pexpect(object):
                 if str_override is None else str_override
         return spawn
 
-    def __init__(self, shell=None, sh_name=None):
-        log.debug("==> Pexpect __init__ shell=%r sh_name=%s" % (shell, sh_name))
+    def __init__(self, request, shell=None, sh_name=None):
+        log.debug("==> Pexpect __init__ request=%s shell=%s sh_name=%s" % (
+            request, shell, sh_name))
         self.shell = shell
         self.sh_name = sh_name
         self._debug = False
         self.dry_run = Pexpect.dry_run
+        self.request = request
         log.debug(
-            "<== self.shell=%s self.sh_name=%s self.debug=%s self.dry_run=%s",
-            self.shell, self.sh_name, self._debug, self.dry_run)
+            "<== self.request=%r self.shell=%s self.sh_name=%s self.debug=%s self.dry_run=%s",
+            self.request, self.shell, self.sh_name, self._debug, self.dry_run)
 
-    @staticmethod
-    def expect_prompt_in_shell(shell, timeout=-1):
-        log.debug("timeout=%s", timeout)
-        shell.expect(r"\$|#", timeout=timeout)
-
-    @staticmethod
-    def pexpect_shell(name, logfile_path=None, cd_to_dir=".", env=None,
+    def pexpect_shell(self, name, cd_to_dir=".", env=None,
                       dry_run=False):
-        shell = None
-        log.debug(
-            f"name={name} logfile_path={logfile_path}"
-            f" cd_to_dir={cd_to_dir} env={env}")
+        log.debug("name=%s cd_to_dir=%s env=%s", name, cd_to_dir, env)
         if not dry_run:
-            logf = Pexpect.open_log_file(name, logfile_path)
-            shell = Pexpect.pexpect_spawn('/bin/bash --noprofile',
-                                          sh_name=name, dry_run=dry_run)
-            shell.logfile_send = logf
-            shell.logfile_read = logf
-            Pexpect.expect_prompt_in_shell(shell)
-            shell.sendline("PS1='\\u@\\h:\\w\\$ '")
-            Pexpect.expect_prompt_in_shell(shell)
+            logf = self.open_log_file(name)
+            self.shell = Pexpect.pexpect_spawn('/bin/bash --noprofile',
+                                               sh_name=name, dry_run=dry_run)
+            self.shell.logfile_send = logf
+            self.shell.logfile_read = logf
+            self.expect_prompt()
+            self.shell.sendline("PS1='\\u@\\h:\\w\\$ '")
+            self.expect_prompt()
             if cd_to_dir:
-                shell.sendline(f"cd {cd_to_dir}")
-                Pexpect.expect_prompt_in_shell(shell)
+                self.shell.sendline(f"cd {cd_to_dir}")
+                self.expect_prompt()
             if env is not None:
-                shell.sendline(env)
-                Pexpect.expect_prompt_in_shell(shell)
-        return shell
+                self.shell.sendline(env)
+                self.expect_prompt()
+        return self
 
-    def make_shell(self, name, logfile_path=None, cd_to_dir=".", env=None):
+    def nodeid_path(self):
+        log.debug("==> nodeid_path self.request.node.nodeid=%s",
+                  self.request.node.nodeid)
+        ret = Pexpect.__nodeid_to_path(self.request.node.nodeid)
+        log.debug("<== ret=%s", ret)
+        return ret
+
+    def get_tst_dir(self):
+        tst_dir = f"logs/{self.nodeid_path()}"
+        return tst_dir
+
+    def make_tst_dir(self):
+        tst_dir = self.get_tst_dir()
+        if not os.path.exists(tst_dir):
+            os.makedirs(tst_dir)
+
+    def open_log_file(self, name):
+        self.make_tst_dir()
+        logname = f"{self.get_tst_dir()}/{name}.log"
+        log.debug("Using logname %s" % logname)
+        logf = open(logname, 'w')
+        return logf
+
+    def write_file_to_tst_dir(self, name, text):
+        if not self.dry_run:
+            file = open(f"{self.get_tst_dir()}/{name}", "w")
+            file.write(text)
+            file.close()
+
+    def make_shell(self, name, cd_to_dir=".", env=None):
         log.debug(
-            "==> Pexpect make_shell name=%s logfile_path=%s cd_to_dir=%s env=%s"
-            % (name, logfile_path, cd_to_dir, env))
-        self.shell = Pexpect.pexpect_shell(name, logfile_path,
-                                           cd_to_dir=cd_to_dir, env=env,
-                                           dry_run=self.dry_run)
+            "==> Pexpect make_shell name=%s cd_to_dir=%s env=%s"
+            % (name, cd_to_dir, env))
+        self.pexpect_shell(name, cd_to_dir=cd_to_dir, env=env,
+                           dry_run=self.dry_run)
         log.debug("<== Pexpect make_shell")
+        return self
 
     def __getattr__(self, attr):
         log.debug("==> __getattr__ %s" % attr)
@@ -223,7 +220,8 @@ class Pexpect(object):
 
     def expect_prompt(self, timeout=-1):
         if not self.dry_run:
-            Pexpect.expect_prompt_in_shell(self.shell, timeout=timeout)
+            log.debug("timeout=%s", timeout)
+            self.shell.expect(r"\$|#", timeout=timeout)
 
     def close(self, force=True):
         if not self.dry_run and self.shell is not None:
