@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import List
 
 import pexpect
 import pytest
@@ -271,3 +272,25 @@ class Pexpect(object):
 
     def do_sleep(self, t, text=None):
         Pexpect._sleep(t, text, dry_run=self.dry_run)
+
+@pytest.fixture
+def make_pexpect(request):
+    created_pexpects:List[Pexpect] = []
+
+    def _make_pexpect(n: int = 1):
+        log.debug("==> n=%i", n)
+        if n < 2:
+            ret = Pexpect(request)
+            created_pexpects.append(ret)
+        else:
+            ret = [Pexpect(request) for _ in range(n)]
+            created_pexpects.extend(ret)
+            ret = tuple(ret)
+        log.debug("<== ret=%r", ret)
+        return ret
+
+    yield _make_pexpect
+
+    for pe in created_pexpects:
+        log.debug("closing=%r", pe)
+        pe.close()
