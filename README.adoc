@@ -15,3 +15,10 @@ addopts = -p pytest_pexpect
 ----
 
 Find if plugin is active: `pytest --trace-config`
+
+
+== PLAN
+
+* `pip` package
+* fixtures for spawn and shell
+* support for documentation (record `sendline` and `expect` commands)

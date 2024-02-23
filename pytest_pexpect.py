@@ -124,13 +124,13 @@ class Pexpect(object):
             "<== self.request=%r self.shell=%s self.sh_name=%s self.debug=%s self.dry_run=%s",
             self.request, self.shell, self.sh_name, self._debug, self.dry_run)
 
-    def pexpect_shell(self, name, cd_to_dir=".", env=None,
-                      dry_run=False):
+    def pexpect_shell(self, name, shell_cmd="/bin/bash --noprofile",
+                      cd_to_dir=".", env=None, dry_run=False, timeout=30):
         log.debug("name=%s cd_to_dir=%s env=%s", name, cd_to_dir, env)
         if not dry_run:
             logf = self.open_log_file(name)
-            self.shell = Pexpect.pexpect_spawn('/bin/bash --noprofile',
-                                               sh_name=name, dry_run=dry_run)
+            self.shell = Pexpect.pexpect_spawn(shell_cmd, sh_name=name,
+                                               dry_run=dry_run, timeout=timeout)
             self.shell.logfile_send = logf
             self.shell.logfile_read = logf
             self.expect_prompt()
@@ -279,6 +279,7 @@ def make_pexpect(request):
 
     def _make_pexpect(n: int = 1):
         log.debug("==> n=%i", n)
+
         if n < 2:
             ret = Pexpect(request)
             created_pexpects.append(ret)
@@ -286,6 +287,7 @@ def make_pexpect(request):
             ret = [Pexpect(request) for _ in range(n)]
             created_pexpects.extend(ret)
             ret = tuple(ret)
+
         log.debug("<== ret=%r", ret)
         return ret
 
@@ -294,3 +296,17 @@ def make_pexpect(request):
     for pe in created_pexpects:
         log.debug("closing=%r", pe)
         pe.close()
+
+@pytest.fixture
+def make_pexpect_shell(request, make_pexpect):
+    def _make_pexpect_shell(names: List[str]):
+        log.debug("==> names=%s", names)
+
+        ret = make_pexpect(len(names))
+        assert len(ret) == len(names)
+        [s.make_shell(names[i]) for i, s in enumerate(ret)]
+
+        log.debug("<== ret=%r", ret)
+        return ret
+
+    yield _make_pexpect_shell
