@@ -44,7 +44,8 @@ class Pexpect(object):
              'exitstatus: ' + str(obj.exitstatus),
              'flag_eof: ' + str(obj.flag_eof), 'pid: ' + str(obj.pid),
              'child_fd: ' + str(obj.child_fd), 'timeout: ' + str(obj.timeout),
-             'delimiter: ' + str(obj.delimiter), 'logfile: ' + str(obj.logfile),
+             'delimiter: ' + str(obj.delimiter),
+             'logfile: ' + str(obj.logfile),
              'logfile_read: ' + str(obj.logfile_read),
              'logfile_send: ' + str(obj.logfile_send),
              'maxread: ' + str(obj.maxread),
@@ -91,7 +92,8 @@ class Pexpect(object):
 
     @staticmethod
     def pexpect_spawn(command, args=None, timeout=30, maxread=2000,
-                      search_window_size=None, logfile=None, cwd=None, env=None,
+                      search_window_size=None, logfile=None, cwd=None,
+                      env=None,
                       ignore_sighup=True, str_override=None,
                       sh_name=None, dry_run=False):
         if args is None:
@@ -121,7 +123,8 @@ class Pexpect(object):
         self.dry_run = Pexpect.dry_run
         self.request = request
         log.debug(
-            "<== self.request=%r self.shell=%s self.sh_name=%s self.debug=%s self.dry_run=%s",
+            "<== self.request=%r self.shell=%s self.sh_name=%s"
+            " self.debug=%s self.dry_run=%s",
             self.request, self.shell, self.sh_name, self._debug, self.dry_run)
 
     def pexpect_shell(self, name, shell_cmd="/bin/bash --noprofile",
@@ -130,7 +133,8 @@ class Pexpect(object):
         if not dry_run:
             logf = self.open_log_file(name)
             self.shell = Pexpect.pexpect_spawn(shell_cmd, sh_name=name,
-                                               dry_run=dry_run, timeout=timeout)
+                                               dry_run=dry_run,
+                                               timeout=timeout)
             self.shell.logfile_send = logf
             self.shell.logfile_read = logf
             self.expect_prompt()
@@ -273,9 +277,10 @@ class Pexpect(object):
     def do_sleep(self, t, text=None):
         Pexpect._sleep(t, text, dry_run=self.dry_run)
 
+
 @pytest.fixture
 def make_pexpect(request):
-    created_pexpects:List[Pexpect] = []
+    created_pexpects: List[Pexpect] = []
 
     def _make_pexpect(n: int = 1):
         log.debug("==> n=%i", n)
@@ -297,16 +302,17 @@ def make_pexpect(request):
         log.debug("closing=%r", pe)
         pe.close()
 
-@pytest.fixture
-def make_pexpect_shell(request, make_pexpect):
-    def _make_pexpect_shell(names: List[str]):
-        log.debug("==> names=%s", names)
 
-        ret = make_pexpect(len(names))
-        assert len(ret) == len(names)
-        [s.make_shell(names[i]) for i, s in enumerate(ret)]
-
-        log.debug("<== ret=%r", ret)
-        return ret
-
-    yield _make_pexpect_shell
+# @pytest.fixture
+# def make_pexpect_shell(request, make_pexpect):
+#     def _make_pexpect_shell(names: List[str]):
+#         log.debug("==> names=%s", names)
+#
+#         ret = make_pexpect(len(names))
+#         assert len(ret) == len(names)
+#         [s.make_shell(names[i]) for i, s in enumerate(ret)]
+#
+#         log.debug("<== ret=%r", ret)
+#         return ret
+#
+#     yield _make_pexpect_shell

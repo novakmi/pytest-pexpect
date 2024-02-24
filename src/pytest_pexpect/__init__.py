@@ -1,4 +1,4 @@
-from pytest_pexpect import (
+from pytest_pexpect.pytest_pexpect import (
     pytest_addoption,
     pytest_configure,
  )
