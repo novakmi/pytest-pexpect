@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pytest-pexpect"
 description = "Pytest pexpect plugin."
-version = "0.1.1"
+version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
@@ -36,8 +36,9 @@ classifiers = [
 ]
 dependencies = [
     "pytest>=6.2.0",
+    "pexpect>=4.8.0"
 ]
 [project.urls]
 Repository = "https://github.com/novakmi/pytest-pexpect"
 [project.entry-points.pytest11]
-django = "pytest_pexpect.pytest_pexpect"
+django = "pytest_pexpect.pexpect_plugin"

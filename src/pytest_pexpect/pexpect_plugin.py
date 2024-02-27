@@ -279,7 +279,33 @@ class Pexpect(object):
 
 
 @pytest.fixture
+def pexpect_object(request) -> Pexpect:
+    log.debug("==> pexpect_object")
+    ret = Pexpect(request)
+    yield ret
+    log.debug("pexpect_object after yield")
+    ret.close()
+    log.debug("<== pexpect_object")
+
+@pytest.fixture
+def pexpect_spawn(pexpect_plugin,
+                  command: str = 'echo "pytest_pexpect"') -> Pexpect:
+    log.debug("==> pexpect_spawn")
+    pexpect_plugin.pexpect_spawn(command)
+    yield pexpect_plugin
+    log.debug("<== pexpect_spawn")
+
+@pytest.fixture
+def pexpect_shell(pexpect_plugin, name:str="shell") -> Pexpect:
+    log.debug("==> pexpect_shell")
+    pexpect_plugin.pexpect_shell(name)
+    yield pexpect_plugin
+    log.debug("<== pexpect_shell")
+
+
+@pytest.fixture
 def make_pexpect(request):
+    log.debug("==> make_pexpect")
     created_pexpects: List[Pexpect] = []
 
     def _make_pexpect(n: int = 1):
@@ -297,22 +323,28 @@ def make_pexpect(request):
         return ret
 
     yield _make_pexpect
+    log.debug("make_pexpect after yield created_pexpects=%r",
+              created_pexpects)
 
     for pe in created_pexpects:
         log.debug("closing=%r", pe)
         pe.close()
 
+    log.debug("<== make_pexpect")
 
-# @pytest.fixture
-# def make_pexpect_shell(request, make_pexpect):
-#     def _make_pexpect_shell(names: List[str]):
-#         log.debug("==> names=%s", names)
-#
-#         ret = make_pexpect(len(names))
-#         assert len(ret) == len(names)
-#         [s.make_shell(names[i]) for i, s in enumerate(ret)]
-#
-#         log.debug("<== ret=%r", ret)
-#         return ret
-#
-#     yield _make_pexpect_shell
+
+@pytest.fixture
+def make_pexpect_shell(request, make_pexpect):
+    log.debug("==> make_pexpect_shell")
+    def _make_pexpect_shell(names : List[str]=["shell"]):
+        log.debug("==> names=%s", names)
+
+        ret = make_pexpect(len(names))
+        assert len(ret) == len(names)
+        [s.make_shell(names[i]) for i, s in enumerate(ret)]
+
+        log.debug("<== ret=%r", ret)
+        return ret
+
+    yield _make_pexpect_shell
+    log.debug("<== make_pexpect_shell")
