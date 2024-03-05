@@ -4,17 +4,17 @@ Pytest pexpect plugin.
 
 === Installation
 
-TODO (not yet working)
-
 You can install `pytest-pexpect` via `pip`
 
+.From local sources (specify directory)
 ----
-pip install pytest-pexpect
+pip3 install pytest-pexpect/
 ----
 
-=== Usage
-
-Add `pytest-pexpect/src/pytest_pexpect` to  `PYTHONPATH`.
+.To remove
+----
+pip3 uninstall pytest-pexpect
+----
 
 Add into `conftest.py` line  `pytest_plugins: str = ("pytest_pexpect")` or
 add into `pytest.ini` lines
@@ -27,11 +27,36 @@ addopts = -p pytest_pexpect
 Find if plugin is active: `pytest --trace-config`
 
 
+=== Parameters
+
+`--pexpect-dry-run` - if added to command line, `pexpect` commands (`sendline`, `expect` ) are not performed
+
+=== Quick start
+
+.Use `pexpect_shell` fixture
+[source,python]
+----
+def test_pexpect_object(pexpect_shell):
+    pexpect_shell.sendline('echo "Hello pexpect"')
+    pexpect_shell.expect('Hello pexpect', timeout=2)
+----
+
+
+
+
 === PLAN
 
+* code documentation
+* examples
 * `pip` package
-* fixtures for spawn and shell
-* support for documentation (record `sendline` and `expect` commands)
+* support for test documentation (record `sendline` and `expect` commands)
+
+
+=== Links
+
+
+pytest     https://pytest.org
+pexpect    https://github.com/pexpect/pexpect
 
 === License
 

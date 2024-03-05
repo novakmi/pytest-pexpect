@@ -95,10 +95,11 @@ class Pexpect(object):
                       search_window_size=None, logfile=None, cwd=None,
                       env=None,
                       ignore_sighup=True, str_override=None,
-                      sh_name=None, dry_run=False):
+                      dry_run=False):
         if args is None:
             args = []
-        log.debug("pexpect_spawn() sh_name=%s", sh_name)
+        log.debug("==> Pexpect.pexpect_spawn command=%s timeout=%s ",
+                  command, timeout)
         enc = {"encoding": 'utf-8'}
         spawn = None
         if not dry_run:
@@ -109,31 +110,37 @@ class Pexpect(object):
                                   cwd=cwd, env=env,
                                   ignore_sighup=ignore_sighup, **enc)
             if spawn is None:
-                raise Exception("pexpect.spawn() failed sh_name=%s", sh_name)
+                raise Exception("pexpect.spawn() failed")
             spawn.__str__.__func__.__code__ = Pexpect.r__str__.__code__ \
                 if str_override is None else str_override
+        log.debug("<== Pexpect.pexpect_spawn")
         return spawn
 
-    def __init__(self, request, shell=None, sh_name=None):
-        log.debug("==> Pexpect __init__ request=%s shell=%s sh_name=%s" % (
-            request, shell, sh_name))
+    def __init__(self, request, name=None, shell=None):
+        log.debug("==> Pexpect __init__ request=%s shell=%s name=%s" % (
+            request, shell, name))
         self.shell = shell
-        self.sh_name = sh_name
+        self.set_name(name)
         self._debug = False
         self.dry_run = Pexpect.dry_run
         self.request = request
         log.debug(
-            "<== self.request=%r self.shell=%s self.sh_name=%s"
+            "<== self.request=%r self.shell=%s self.name=%s"
             " self.debug=%s self.dry_run=%s",
-            self.request, self.shell, self.sh_name, self._debug, self.dry_run)
+            self.request, self.shell, self.name, self._debug, self.dry_run)
 
-    def pexpect_shell(self, name, shell_cmd="/bin/bash --noprofile",
+    def set_name(self, name):
+        log.debug("==> set_name")
+        self.name = name
+        log.debug("<== set_name")
+
+    def pexpect_shell(self, shell_cmd="/bin/bash --noprofile",
                       cd_to_dir=".", env=None, dry_run=False, timeout=30):
-        log.debug("name=%s cd_to_dir=%s env=%s", name, cd_to_dir, env)
+        log.debug("==> shell_cmd=%s cd_to_dir=%s env=%s",
+                  shell_cmd, cd_to_dir, env)
         if not dry_run:
-            logf = self.open_log_file(name)
-            self.shell = Pexpect.pexpect_spawn(shell_cmd, sh_name=name,
-                                               dry_run=dry_run,
+            logf = self.open_log_file(self.name)
+            self.shell = Pexpect.pexpect_spawn(shell_cmd, dry_run=dry_run,
                                                timeout=timeout)
             self.shell.logfile_send = logf
             self.shell.logfile_read = logf
@@ -146,6 +153,7 @@ class Pexpect(object):
             if env is not None:
                 self.shell.sendline(env)
                 self.expect_prompt()
+        log.debug("<==")
         return self
 
     def nodeid_path(self):
@@ -177,13 +185,12 @@ class Pexpect(object):
             file.write(text)
             file.close()
 
-    def make_shell(self, name, cd_to_dir=".", env=None):
+    def make_shell(self, cd_to_dir=".", env=None):
         log.debug(
-            "==> Pexpect make_shell name=%s cd_to_dir=%s env=%s"
-            % (name, cd_to_dir, env))
-        self.pexpect_shell(name, cd_to_dir=cd_to_dir, env=env,
+            "==> cd_to_dir=%s env=%s", cd_to_dir, env)
+        self.pexpect_shell(cd_to_dir=cd_to_dir, env=env,
                            dry_run=self.dry_run)
-        log.debug("<== Pexpect make_shell")
+        log.debug("<==")
         return self
 
     def __getattr__(self, attr):
@@ -202,7 +209,7 @@ class Pexpect(object):
                fail_on=None, **kw):
         log.debug("==> expect %s", pattern)
         if self._debug:
-            log.debug("    %s.expect: \"%s\"", self.sh_name, pattern)
+            log.debug("    %s.expect: \"%s\"", self.method_name(), pattern)
         ret = 0
         if not self.dry_run:
             if fail_on is not None:
@@ -244,7 +251,7 @@ class Pexpect(object):
         log.debug("==> send %s", s)
         ret = 0
         if self._debug:
-            log.debug("    send: \"%s\"", self.sh_name)
+            log.debug("    send: \"%s\"", self.method_name())
         if not self.dry_run:
             ret = self.shell.send(s)
         log.debug("<== ret %s", ret)
@@ -254,7 +261,7 @@ class Pexpect(object):
         log.debug("==> sendline %s", s)
         ret = 0
         if self._debug:
-            log.debug("    sendline: \"%s\"", self.sh_name)
+            log.debug("    sendline: \"%s\"", self.method_name())
         if not self.dry_run:
             ret = self.shell.sendline(s)
         log.debug("<== ret %s", ret)
@@ -279,27 +286,21 @@ class Pexpect(object):
 
 
 @pytest.fixture
-def pexpect_object(request) -> Pexpect:
+def pexpect_object(request, name: str = "pexpect") -> Pexpect:
     log.debug("==> pexpect_object")
-    ret = Pexpect(request)
+    ret = Pexpect(request, name=name)
     yield ret
     log.debug("pexpect_object after yield")
     ret.close()
     log.debug("<== pexpect_object")
 
-@pytest.fixture
-def pexpect_spawn(pexpect_plugin,
-                  command: str = 'echo "pytest_pexpect"') -> Pexpect:
-    log.debug("==> pexpect_spawn")
-    pexpect_plugin.pexpect_spawn(command)
-    yield pexpect_plugin
-    log.debug("<== pexpect_spawn")
 
 @pytest.fixture
-def pexpect_shell(pexpect_plugin, name:str="shell") -> Pexpect:
+def pexpect_shell(pexpect_object, name: str = "shell") -> Pexpect:
     log.debug("==> pexpect_shell")
-    pexpect_plugin.pexpect_shell(name)
-    yield pexpect_plugin
+    pexpect_object.set_name(name)
+    pexpect_object.pexpect_shell()
+    yield pexpect_object
     log.debug("<== pexpect_shell")
 
 
@@ -336,7 +337,8 @@ def make_pexpect(request):
 @pytest.fixture
 def make_pexpect_shell(request, make_pexpect):
     log.debug("==> make_pexpect_shell")
-    def _make_pexpect_shell(names : List[str]=["shell"]):
+
+    def _make_pexpect_shell(names: List[str] = ["shell"]):
         log.debug("==> names=%s", names)
 
         ret = make_pexpect(len(names))

@@ -1,0 +1,8 @@
+=== 2024-03-xx  0.1.0
+
+Initial release
+
+* setuptools pytest plugin structure
+* Pexpect class
+* basic fixtures `pexpect_object`, `pexpect_shell`, `make_pexpect`, `make_pexpect_shell`
+* Initial tests
