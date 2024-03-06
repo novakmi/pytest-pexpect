@@ -15,6 +15,6 @@ def test_pexpect_shell(pexpect_shell):
     t_shell_hello(pexpect_shell)
 
 
-def test_make_pexpect(make_pexpect):
-    pe = make_pexpect(1)
+def test_make_pexpects(make_pexpects):
+    pe = make_pexpects(1)
     t_hello(pe)

@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import List
+from dataclasses import dataclass
+from typing import List, Tuple, Union
 
 import pexpect
 import pytest
@@ -23,6 +24,13 @@ def pytest_configure(config):
     Pexpect.dry_run = config.option.pexpect_dry_run
     print(f"Dry run {Pexpect.dry_run}")
     log.debug("<== pytest_configure")
+
+
+@dataclass
+class ShellParams:
+    name: str = "shell"
+    env: str = None
+    cd_to_dir: str = "."
 
 
 class Pexpect(object):
@@ -135,12 +143,12 @@ class Pexpect(object):
         log.debug("<== set_name")
 
     def pexpect_shell(self, shell_cmd="/bin/bash --noprofile",
-                      cd_to_dir=".", env=None, dry_run=False, timeout=30):
+                      cd_to_dir=".", env=None, timeout=30):
         log.debug("==> shell_cmd=%s cd_to_dir=%s env=%s",
                   shell_cmd, cd_to_dir, env)
-        if not dry_run:
+        if not self.dry_run:
             logf = self.open_log_file(self.name)
-            self.shell = Pexpect.pexpect_spawn(shell_cmd, dry_run=dry_run,
+            self.shell = Pexpect.pexpect_spawn(shell_cmd, dry_run=self.dry_run,
                                                timeout=timeout)
             self.shell.logfile_send = logf
             self.shell.logfile_read = logf
@@ -185,11 +193,10 @@ class Pexpect(object):
             file.write(text)
             file.close()
 
-    def make_shell(self, cd_to_dir=".", env=None):
-        log.debug(
-            "==> cd_to_dir=%s env=%s", cd_to_dir, env)
-        self.pexpect_shell(cd_to_dir=cd_to_dir, env=env,
-                           dry_run=self.dry_run)
+    def make_shell(self, params=ShellParams()):
+        log.debug("==> params=%s", params)
+        self.pexpect_shell(cd_to_dir=params.cd_to_dir, env=params.env)
+        self.set_name(params.name)
         log.debug("<==")
         return self
 
@@ -305,25 +312,21 @@ def pexpect_shell(pexpect_object, name: str = "shell") -> Pexpect:
 
 
 @pytest.fixture
-def make_pexpect(request):
-    log.debug("==> make_pexpect")
+def make_pexpects(request):
+    log.debug("==> make_pexpects")
     created_pexpects: List[Pexpect] = []
 
-    def _make_pexpect(n: int = 1):
+    def _make_pexpects(n: int = 1) -> Union[Pexpect, Tuple[Pexpect, ...]]:
         log.debug("==> n=%i", n)
 
-        if n < 2:
-            ret = Pexpect(request)
-            created_pexpects.append(ret)
-        else:
-            ret = [Pexpect(request) for _ in range(n)]
-            created_pexpects.extend(ret)
-            ret = tuple(ret)
+        ret = [Pexpect(request) for _ in range(n)]
+        created_pexpects.extend(ret)
+        ret = ret[0] if len(ret) == 1 else tuple(ret)
 
         log.debug("<== ret=%r", ret)
         return ret
 
-    yield _make_pexpect
+    yield _make_pexpects
     log.debug("make_pexpect after yield created_pexpects=%r",
               created_pexpects)
 
@@ -331,22 +334,24 @@ def make_pexpect(request):
         log.debug("closing=%r", pe)
         pe.close()
 
-    log.debug("<== make_pexpect")
+    log.debug("<== make_pexpects")
 
 
 @pytest.fixture
-def make_pexpect_shell(request, make_pexpect):
-    log.debug("==> make_pexpect_shell")
+def make_pexpect_shells(request, make_pexpects):
+    log.debug("==> make_pexpect_shells")
 
-    def _make_pexpect_shell(names: List[str] = ["shell"]):
-        log.debug("==> names=%s", names)
+    def _make_pexpect_shells(params: List[ShellParams] = [ShellParams()]) -> \
+            Union[Pexpect, Tuple[Pexpect, ...]]:
+        log.debug("==> params=%s", params)
 
-        ret = make_pexpect(len(names))
-        assert len(ret) == len(names)
-        [s.make_shell(names[i]) for i, s in enumerate(ret)]
+        ret = [make_pexpects() for _ in range(len(params))]
+        for s, param in zip(ret, params):
+            s.make_shell(param)
+        ret = ret[0] if len(ret) == 1 else tuple(ret)
 
         log.debug("<== ret=%r", ret)
         return ret
 
-    yield _make_pexpect_shell
-    log.debug("<== make_pexpect_shell")
+    yield _make_pexpect_shells
+    log.debug("<== make_pexpect_shells")

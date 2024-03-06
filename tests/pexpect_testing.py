@@ -1,4 +1,4 @@
-from pytest_pexpect import Pexpect
+from pytest_pexpect import Pexpect, ShellParams
 
 
 def t_shell_hello(pe_shell: Pexpect):
@@ -7,5 +7,5 @@ def t_shell_hello(pe_shell: Pexpect):
 
 
 def t_hello(pe: Pexpect):
-    pe.make_shell("shell")
+    pe.make_shell(ShellParams(name="shell"))
     t_shell_hello(pe)
