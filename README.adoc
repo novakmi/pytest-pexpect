@@ -26,7 +26,6 @@ addopts = -p pytest_pexpect
 
 Find if plugin is active: `pytest --trace-config`
 
-
 === Parameters
 
 `--pexpect-dry-run` - if added to command line, `pexpect` commands (`sendline`, `expect` ) are not performed
@@ -41,7 +40,29 @@ def test_pexpect_object(pexpect_shell):
     pexpect_shell.expect('Hello pexpect', timeout=2)
 ----
 
+The `log` directory is created with output.
 
+== Tests
+
+Run full `tox` tests
+
+[source,bash]
+----
+tox
+----
+
+Run full `tox`  `flake8`  tests
+[source,bash]
+----
+tox -e flake8
+----
+
+Run  `pytest` tests
+
+[source,bash]
+----
+pytest -o log_cli=true -o log_cli_level=WARNING  tests/
+----
 
 
 === PLAN

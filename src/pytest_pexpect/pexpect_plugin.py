@@ -195,25 +195,24 @@ class Pexpect(object):
 
     def make_shell(self, params=ShellParams()):
         log.debug("==> params=%s", params)
-        self.pexpect_shell(cd_to_dir=params.cd_to_dir, env=params.env)
         self.set_name(params.name)
+        self.pexpect_shell(cd_to_dir=params.cd_to_dir, env=params.env)
         log.debug("<==")
         return self
 
-    def __getattr__(self, attr):
-        log.debug("==> __getattr__ %s" % attr)
-        shell = self.shell
-        if attr == "s":
-            attr = "sendline"
-            shell = self
-        if attr == "e":
-            attr = "expect"
-            shell = self
-        log.debug("<== attr %s" % attr)
-        return getattr(shell, attr) if shell is not None else "shell is None!"
+    def expect(self, pattern: str, timeout=-1, searchwindowsize=-1,
+               async_=False, fail_on: List = None, **kw):
+        """
+        A function for handling expected patterns with optional parameters
+        for timeout, search window size, and asynchronous processing.
 
-    def expect(self, pattern, timeout=-1, searchwindowsize=-1, async_=False,
-               fail_on=None, **kw):
+        :see: https://pexpect.readthedocs.io/en/stable/api/pexpect.html#pexpect.spawn.expect # noqa: E501
+        :param pattern: The expected pattern.
+        :param timeout: The timeout value.
+        :param searchwindowsize: The search window size.
+        :param async_: The asynchronous processing flag.
+        :param fail_on: The forbidden patterns.
+       """
         log.debug("==> expect %s", pattern)
         if self._debug:
             log.debug("    %s.expect: \"%s\"", self.method_name(), pattern)
@@ -236,6 +235,12 @@ class Pexpect(object):
                                         async_=async_, **kw)
         log.debug("<== expect %s", pattern)
         return ret
+
+    def e(self, *args, **kwargs):
+        """
+        Alias for expect
+        """
+        return self.expect(*args, **kwargs)
 
     def expect_prompt(self, timeout=-1):
         if not self.dry_run:
@@ -265,6 +270,12 @@ class Pexpect(object):
         return ret
 
     def sendline(self, s=''):
+        """
+        Send a line to the shell.
+        Does nothing if dry_run is true.
+        :param s: a line string
+        :return: the returned value from pexpect sendline
+        """
         log.debug("==> sendline %s", s)
         ret = 0
         if self._debug:
@@ -273,6 +284,12 @@ class Pexpect(object):
             ret = self.shell.sendline(s)
         log.debug("<== ret %s", ret)
         return ret
+
+    def s(self, *args, **kwargs):
+        """
+        Alias for sendline
+        """
+        return self.sendline(*args, **kwargs)
 
     def sendcontrol(self, char):
         log.debug("==> sendcontrol %c", char)
@@ -294,6 +311,12 @@ class Pexpect(object):
 
 @pytest.fixture
 def pexpect_object(request, name: str = "pexpect") -> Pexpect:
+    """
+    A fixture that returns a Pexpect object.
+    Closes the Pexpect object after the test.
+    :param name: The name of the Pexpect object.
+    :yield: A Pexpect object.
+    """
     log.debug("==> pexpect_object")
     ret = Pexpect(request, name=name)
     yield ret
@@ -303,25 +326,49 @@ def pexpect_object(request, name: str = "pexpect") -> Pexpect:
 
 
 @pytest.fixture
-def pexpect_shell(pexpect_object, name: str = "shell") -> Pexpect:
+def pexpect_shell(pexpect_object, shell) -> Pexpect:
+    """
+    A fixture that creates a pexpect shell using the provided shell parameters.
+    Closes the Pexpect object after the test.
+    :param pexpect_object: The pexpect object fixture.
+    :param shell: The shell parameters to use.
+    :return: A Pexpect object.
+    """
+    assert isinstance(shell, ShellParams)
     log.debug("==> pexpect_shell")
-    pexpect_object.set_name(name)
-    pexpect_object.pexpect_shell()
+    pexpect_object.make_shell(shell)
     yield pexpect_object
     log.debug("<== pexpect_shell")
 
 
 @pytest.fixture
 def make_pexpects(request):
+    """
+    A fixture that creates factory functions that create Pexpect objects.
+    Closes the Pexpect objects after the test.
+    :param request:
+    :yield: yields a factory function that creates Pexpect objects.
+    """
     log.debug("==> make_pexpects")
     created_pexpects: List[Pexpect] = []
 
     def _make_pexpects(n: int = 1) -> Union[Pexpect, Tuple[Pexpect, ...]]:
+        """
+        A fixture function that creates Pexpect objects.
+        It takes an optional parameter 'n' to specify the number of
+        Pexpect objects to create.
+        It returns a single Pexpect object if 'n' is 1,
+        otherwise it returns a tuple of Pexpect objects.
+
+        :param request: The pytest request object.
+        :param n: The number of Pexpect objects to create.
+        :return: A Pexpect object or a tuple of Pexpect objects.
+        """
         log.debug("==> n=%i", n)
 
-        ret = [Pexpect(request) for _ in range(n)]
+        ret = tuple(Pexpect(request) for _ in range(n))
         created_pexpects.extend(ret)
-        ret = ret[0] if len(ret) == 1 else tuple(ret)
+        ret = ret[0] if len(ret) == 1 else ret
 
         log.debug("<== ret=%r", ret)
         return ret
@@ -339,10 +386,30 @@ def make_pexpects(request):
 
 @pytest.fixture
 def make_pexpect_shells(request, make_pexpects):
+    """
+    A fixture that creates factory functions that create Pexpect objects
+    initialized with shell parameters.
+    Closes the Pexpect objects after the test.
+    :param request:
+    :param make_pexpects: The fixture that creates Pexpect objects
+    :yield: yields a factory function that creates Pexpect objects
+    """
     log.debug("==> make_pexpect_shells")
 
     def _make_pexpect_shells(params: List[ShellParams] = [ShellParams()]) -> \
             Union[Pexpect, Tuple[Pexpect, ...]]:
+        """
+        A fixture function that creates Pexpect objects
+        initialized with shell parameters.
+        It takes an optional parameter 'params' representing the List of
+        ShellParams to use for each Pexpect object
+        (defaults to [ShellParams()]).
+        It returns a single Pexpect object if params contains a single
+        ShellParams, otherwise it returns a tuple of Pexpect objects.
+        :param request: The pytest request object.
+        :param params: The List of ShellParams to use for each Pexpect object.
+        :return: A Pexpect object, or a tuple of Pexpect objects.
+        """
         log.debug("==> params=%s", params)
 
         ret = [make_pexpects() for _ in range(len(params))]
