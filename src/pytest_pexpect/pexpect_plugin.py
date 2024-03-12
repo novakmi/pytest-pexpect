@@ -33,6 +33,20 @@ class ShellParams:
     cd_to_dir: str = "."
 
 
+class PexpectException(Exception):
+    def __init__(self, message="This is a pytest-pexpect exception"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class PexpectForbiddenPatternException(PexpectException):
+    def __init__(self, pattern: str, expected: str = None):
+        self.message = f"Forbidden pattern detected: {pattern}"
+        if expected is not None:
+            self.message += f", expected {expected}"
+        super().__init__(self.message)
+
+
 class Pexpect(object):
     dry_run = False
 
@@ -129,13 +143,12 @@ class Pexpect(object):
             request, shell, name))
         self.shell = shell
         self.set_name(name)
-        self._debug = False
         self.dry_run = Pexpect.dry_run
         self.request = request
         log.debug(
             "<== self.request=%r self.shell=%s self.name=%s"
             " self.debug=%s self.dry_run=%s",
-            self.request, self.shell, self.name, self._debug, self.dry_run)
+            self.request, self.shell, self.name, self.dry_run)
 
     def set_name(self, name):
         log.debug("==> set_name")
@@ -201,7 +214,7 @@ class Pexpect(object):
         return self
 
     def expect(self, pattern: str, timeout=-1, searchwindowsize=-1,
-               async_=False, fail_on: List = None, **kw):
+               async_=False, forbidden_patterns: List = None, **kw):
         """
         A function for handling expected patterns with optional parameters
         for timeout, search window size, and asynchronous processing.
@@ -211,24 +224,25 @@ class Pexpect(object):
         :param timeout: The timeout value.
         :param searchwindowsize: The search window size.
         :param async_: The asynchronous processing flag.
-        :param fail_on: The forbidden patterns.
+        :param forbidden_patterns: The forbidden patterns.
        """
         log.debug("==> expect %s", pattern)
-        if self._debug:
-            log.debug("    %s.expect: \"%s\"", self.method_name(), pattern)
         ret = 0
         if not self.dry_run:
-            if fail_on is not None:
-                assert isinstance(fail_on, list)
-                pattern = [pattern] if not isinstance(pattern,
-                                                      list) else pattern
-                lst_pattern = [pattern] + fail_on
+            if forbidden_patterns is not None:
+                assert isinstance(forbidden_patterns, list)
+                len_pattern = 1 if not isinstance(pattern,
+                                                  list) else len(pattern)
+                lst_pattern = [pattern] if not isinstance(pattern,
+                                                          list) else pattern
+                lst_pattern.extend(forbidden_patterns)
+                log.debug("lst_pattern=%s", lst_pattern)
                 res = self.shell.expect(lst_pattern, timeout=timeout,
                                         searchwindowsize=searchwindowsize,
                                         async_=async_, **kw)
-                if res >= len(pattern):
-                    pytest.fail("Received forbidden value %s, expected %s",
-                                lst_pattern[res], lst_pattern[0])
+                log.debug("res=%s", res)
+                if res >= len_pattern:
+                    raise PexpectForbiddenPatternException(lst_pattern[res])
             else:
                 ret = self.shell.expect(pattern, timeout=timeout,
                                         searchwindowsize=searchwindowsize,
@@ -262,8 +276,6 @@ class Pexpect(object):
     def send(self, s=''):
         log.debug("==> send %s", s)
         ret = 0
-        if self._debug:
-            log.debug("    send: \"%s\"", self.method_name())
         if not self.dry_run:
             ret = self.shell.send(s)
         log.debug("<== ret %s", ret)
@@ -278,8 +290,6 @@ class Pexpect(object):
         """
         log.debug("==> sendline %s", s)
         ret = 0
-        if self._debug:
-            log.debug("    sendline: \"%s\"", self.method_name())
         if not self.dry_run:
             ret = self.shell.sendline(s)
         log.debug("<== ret %s", ret)
@@ -360,7 +370,6 @@ def make_pexpects(request):
         It returns a single Pexpect object if 'n' is 1,
         otherwise it returns a tuple of Pexpect objects.
 
-        :param request: The pytest request object.
         :param n: The number of Pexpect objects to create.
         :return: A Pexpect object or a tuple of Pexpect objects.
         """
@@ -396,8 +405,8 @@ def make_pexpect_shells(request, make_pexpects):
     """
     log.debug("==> make_pexpect_shells")
 
-    def _make_pexpect_shells(params: List[ShellParams] = [ShellParams()]) -> \
-            Union[Pexpect, Tuple[Pexpect, ...]]:
+    def _make_pexpect_shells(params=None) \
+            -> Union[Pexpect, Tuple[Pexpect, ...]]:
         """
         A fixture function that creates Pexpect objects
         initialized with shell parameters.
@@ -406,10 +415,11 @@ def make_pexpect_shells(request, make_pexpects):
         (defaults to [ShellParams()]).
         It returns a single Pexpect object if params contains a single
         ShellParams, otherwise it returns a tuple of Pexpect objects.
-        :param request: The pytest request object.
         :param params: The List of ShellParams to use for each Pexpect object.
         :return: A Pexpect object, or a tuple of Pexpect objects.
         """
+        if params is None:
+            params = [ShellParams()]
         log.debug("==> params=%s", params)
 
         ret = [make_pexpects() for _ in range(len(params))]
