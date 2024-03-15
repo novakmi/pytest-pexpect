@@ -1,48 +1,108 @@
-== pytest-pexpect
+= pytest-pexpect
+:experimental:
+:icons: font
+:toc: left
+:source-highlighter: coderay
 
-Pytest pexpect plugin.
+ifdef::env-github[]
+:caution-caption: :fire:
+:important-caption: :exclamation:
+:note-caption: :information_source:
+:tip-caption: :bulb:
+:warning-caption: :warning:
+endif::[]
 
-=== Installation
+:Author:    Michal Novák
+:email:     it.novakmi@gmail.com
+:URL:       https://github.com/novakmi/pytest-pexpect
+:Date:      2024-03-14
+:Revision:  0.1.0 (in progress)
 
-You can install `pytest-pexpect` via `pip`
+== Introduction
 
-.From local sources (specify directory)
+The `pytest-pexpect` plugin aims to streamline CLI testing, a common practice in network and system-related software development and administration tasks. CLI testing encompasses various types of tests, including unit, integration, system, and acceptance tests.
+
+https://docs.pytest.org/[Pytest] is a well-known Python test framework with rich features and flexibility.
+
+https://pexpect.readthedocs.io/[Pexpect] is a Python Expect-like library specifically designed to simulate user CLI interactions, facilitating automated testing of command-line interfaces.
+
+Combining Pytest with Pexpect brings significant advantages to testing CLI applications. With the `pytest-pexpect` plugin, you can harness the power of Pytest's assertions, fixtures, and parametrization alongside Pexpect's CLI interaction capabilities for seamless and efficient testing of CLI applications.
+
+Distributed under the terms of the `MIT` license, `pytest-pexpect` is free and open source software, see link:LICENSE[LICNESE] file.
+
+For history and releases see link:CHANGES.adoc[CHANGES.adoc] file.
+
+== Installation
+
+=== `pip3` installation
+
+You can install `pytest-pexpect` plugin with `pip3`.
+Currently, the package is not hosted at
+https://pypi.org/ and you have to pass directory of the repository.
+
+.Clone repository and install the package.
 ----
+git clone https://github.com/novakmi/pytest-pexpect.git
 pip3 install pytest-pexpect/
 ----
 
-.To remove
+.Uninstall plugin.
 ----
 pip3 uninstall pytest-pexpect
 ----
 
-Add into `conftest.py` line  `pytest_plugins: str = ("pytest_pexpect")` or
-add into `pytest.ini` lines
+=== `PYTHONPATH` installation
 
+Set PYTHONPATH to  `pytest-pexpect/src` directory
+(e.g. `export PYTHONPATH=~/pytest-pexpect/src:$PYTHONPATH`).
+
+Add into your `conftest.py` line
+[source, python]
+----
+pytest_plugins: str = ("pytest_pexpect")
+----
+
+or add into `pytest.ini` lines
+
+[source,ini]
 ----
 [pytest]
 addopts = -p pytest_pexpect
 ----
 
-Find if plugin is active: `pytest --trace-config`
+=== Verify installation
 
-=== Parameters
+[source, shell]
+----
+pytest --trace-config`
+----
+
+== Parameters
 
 `--pexpect-dry-run` - if added to command line, `pexpect` commands (`sendline`, `expect` ) are not performed
 
-=== Quick start
+== Quick start
 
 .Use `pexpect_shell` fixture
 [source,python]
 ----
+from pytest_pexpect import ShellParams
+
+@pytest.mark.parametrize("shell", [ShellParams()])
 def test_pexpect_object(pexpect_shell):
     pexpect_shell.sendline('echo "Hello pexpect"')
     pexpect_shell.expect('Hello pexpect', timeout=2)
+    pexpect_shell.expect_prompt()
 ----
 
-The `log` directory is created with output.
+The `log` directory is created with output log files.
 
-== Tests
+== User guide
+
+TODO
+(See `src` and `tests` directory for now)
+
+== Plugin tests
 
 Run full `tox` tests
 
@@ -64,21 +124,25 @@ Run  `pytest` tests
 pytest -o log_cli=true -o log_cli_level=WARNING  tests/
 ----
 
+== Planned features
 
-=== PLAN
-
-* code documentation
+* improve code documentation
 * examples
-* `pip` package
+* pipy.org package
 * support for test documentation (record `sendline` and `expect` commands)
 
+== Links
 
-=== Links
 
 
-pytest     https://pytest.org
+
+
+
+
+
+
+
+
+
+pytest     https://pytest.org +
 pexpect    https://github.com/pexpect/pexpect
-
-=== License
-
-Distributed under the terms of the `MIT`_ license, "pytest-pexpect" is free and open source software
