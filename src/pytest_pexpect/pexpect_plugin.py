@@ -13,16 +13,20 @@ debug_sleep = False
 
 def pytest_addoption(parser):
     log.debug("==> pytest_addoption")
+
     parser.addoption('--pexpect-dry-run', action='store_true',
                      dest='pexpect_dry_run',
                      help='Dry run pexpect commands')
+
     log.debug("<== pytest_addoption")
 
 
 def pytest_configure(config):
     log.debug("==> pytest_configure")
+
     Pexpect.dry_run = config.option.pexpect_dry_run
     print(f"Dry run {Pexpect.dry_run}")
+
     log.debug("<== pytest_configure")
 
 
@@ -34,12 +38,14 @@ class ShellParams:
 
 
 class PexpectException(Exception):
+
     def __init__(self, message="This is a pytest-pexpect exception"):
         self.message = message
         super().__init__(self.message)
 
 
 class PexpectForbiddenPatternException(PexpectException):
+
     def __init__(self, pattern: str, expected: str = None):
         self.message = f"Forbidden pattern detected: {pattern}"
         if expected is not None:
@@ -84,10 +90,12 @@ class Pexpect(object):
     @staticmethod
     def __nodeid_to_path(node_id):
         log.debug("==> __node_id_to_path node_id=%s" % node_id)
+
         node_id = node_id.replace("(", "")
         node_id = node_id.replace(")", "")
         node_id = node_id.replace("::", "_")
         node_id = node_id.replace("/", "_")
+
         log.debug("<== __node_id_to_path node_id=%s" % node_id)
         return node_id
 
@@ -122,6 +130,7 @@ class Pexpect(object):
             args = []
         log.debug("==> Pexpect.pexpect_spawn command=%s timeout=%s ",
                   command, timeout)
+
         enc = {"encoding": 'utf-8'}
         spawn = None
         if not dry_run:
@@ -135,16 +144,19 @@ class Pexpect(object):
                 raise Exception("pexpect.spawn() failed")
             spawn.__str__.__func__.__code__ = Pexpect.r__str__.__code__ \
                 if str_override is None else str_override
+
         log.debug("<== Pexpect.pexpect_spawn")
         return spawn
 
     def __init__(self, request, name=None, shell=None):
         log.debug("==> Pexpect __init__ request=%s shell=%s name=%s" % (
             request, shell, name))
+
         self.shell = shell
         self.set_name(name)
         self.dry_run = Pexpect.dry_run
         self.request = request
+
         log.debug(
             "<== self.request=%r self.shell=%s self.name=%s"
             " self.debug=%s self.dry_run=%s",
@@ -152,13 +164,16 @@ class Pexpect(object):
 
     def set_name(self, name):
         log.debug("==> set_name")
+
         self.name = name
+
         log.debug("<== set_name")
 
     def pexpect_shell(self, shell_cmd="/bin/bash --noprofile",
                       cd_to_dir=".", env=None, timeout=30):
         log.debug("==> shell_cmd=%s cd_to_dir=%s env=%s",
                   shell_cmd, cd_to_dir, env)
+
         if not self.dry_run:
             logf = self.open_log_file(self.name)
             self.shell = Pexpect.pexpect_spawn(shell_cmd, dry_run=self.dry_run,
@@ -174,13 +189,16 @@ class Pexpect(object):
             if env is not None:
                 self.shell.sendline(env)
                 self.expect_prompt()
+
         log.debug("<==")
         return self
 
     def nodeid_path(self):
         log.debug("==> nodeid_path self.request.node.nodeid=%s",
                   self.request.node.nodeid)
+
         ret = Pexpect.__nodeid_to_path(self.request.node.nodeid)
+
         log.debug("<== ret=%s", ret)
         return ret
 
@@ -208,13 +226,16 @@ class Pexpect(object):
 
     def make_shell(self, params=ShellParams()):
         log.debug("==> params=%s", params)
+
         self.set_name(params.name)
         self.pexpect_shell(cd_to_dir=params.cd_to_dir, env=params.env)
+
         log.debug("<==")
         return self
 
-    def expect(self, pattern: str, timeout=-1, searchwindowsize=-1,
-               async_=False, forbidden_patterns: List = None, **kw):
+    def expect(self, pattern: Union[str, List[str]], timeout: int = -1,
+               searchwindowsize: int = -1, async_: bool = False,
+               forbidden_patterns: List = None, **kw):
         """
         A function for handling expected patterns with optional parameters
         for timeout, search window size, and asynchronous processing.
@@ -228,6 +249,7 @@ class Pexpect(object):
        """
         log.debug("==> expect %s", pattern)
         ret = 0
+
         if not self.dry_run:
             if forbidden_patterns is not None:
                 assert isinstance(forbidden_patterns, list)
@@ -247,6 +269,7 @@ class Pexpect(object):
                 ret = self.shell.expect(pattern, timeout=timeout,
                                         searchwindowsize=searchwindowsize,
                                         async_=async_, **kw)
+
         log.debug("<== expect %s", pattern)
         return ret
 
@@ -276,22 +299,36 @@ class Pexpect(object):
     def send(self, s=''):
         log.debug("==> send %s", s)
         ret = 0
+
         if not self.dry_run:
             ret = self.shell.send(s)
+
         log.debug("<== ret %s", ret)
         return ret
 
-    def sendline(self, s=''):
+    def sendline(self, s: str = '', expect: Union[str, List[str]] = None,
+                 timeout: int = -1, searchwindowsize: int = -1,
+                 async_: bool = False, forbidden_patterns: List = None, **kw):
         """
         Send a line to the shell.
+        Optionally perform expext
         Does nothing if dry_run is true.
         :param s: a line string
+        :see: self.expect
         :return: the returned value from pexpect sendline
         """
         log.debug("==> sendline %s", s)
         ret = 0
+
         if not self.dry_run:
             ret = self.shell.sendline(s)
+
+        if expect is not None:
+            ret = self.expect(expect, timeout=timeout,
+                              searchwindowsize=searchwindowsize,
+                              async_=async_,
+                              forbidden_patterns=forbidden_patterns, **kw)
+
         log.debug("<== ret %s", ret)
         return ret
 
@@ -304,15 +341,19 @@ class Pexpect(object):
     def sendcontrol(self, char):
         log.debug("==> sendcontrol %c", char)
         ret = 0
+
         if not self.dry_run:
             ret = self.shell.sendcontrol(char)
+
         log.debug("<== ret %s", ret)
         return ret
 
     def flush(self):
         log.debug("==> flush")
+
         if not self.dry_run:
             self.shell.flush()
+
         log.debug("<== flush")
 
     def do_sleep(self, t, text=None):
@@ -328,10 +369,12 @@ def pexpect_object(request, name: str = "pexpect") -> Pexpect:
     :yield: A Pexpect object.
     """
     log.debug("==> pexpect_object")
+
     ret = Pexpect(request, name=name)
     yield ret
     log.debug("pexpect_object after yield")
     ret.close()
+
     log.debug("<== pexpect_object")
 
 
@@ -346,8 +389,10 @@ def pexpect_shell(pexpect_object, shell) -> Pexpect:
     """
     assert isinstance(shell, ShellParams)
     log.debug("==> pexpect_shell")
+
     pexpect_object.make_shell(shell)
     yield pexpect_object
+
     log.debug("<== pexpect_shell")
 
 
@@ -431,4 +476,5 @@ def make_pexpect_shells(request, make_pexpects):
         return ret
 
     yield _make_pexpect_shells
+
     log.debug("<== make_pexpect_shells")

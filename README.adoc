@@ -15,8 +15,8 @@ endif::[]
 :Author:    Michal Novák
 :email:     it.novakmi@gmail.com
 :URL:       https://github.com/novakmi/pytest-pexpect
-:Date:      2024-03-14
-:Revision:  0.1.0 (in progress)
+:Date:      2024-03-26
+:Revision:  0.1.0
 
 == Introduction
 
@@ -26,7 +26,7 @@ https://docs.pytest.org/[Pytest] is a well-known Python test framework with rich
 
 https://pexpect.readthedocs.io/[Pexpect] is a Python Expect-like library specifically designed to simulate user CLI interactions, facilitating automated testing of command-line interfaces.
 
-Combining Pytest with Pexpect brings significant advantages to testing CLI applications. With the `pytest-pexpect` plugin, you can harness the power of Pytest's assertions, fixtures, and parametrization alongside Pexpect's CLI interaction capabilities for seamless and efficient testing of CLI applications.
+Combining Pytest with Pexpect brings significant advantages to testing CLI applications. With the `pytest-pexpect` plugin, you can harness the power of Pytest's assertions, fixtures, and parametrization alongside Pexpect's CLI interaction capabilities for seamless and efficient testing of CLI applications. In addition to `pexpect`, the plugin adds support for forbidden patterns.
 
 Distributed under the terms of the `MIT` license, `pytest-pexpect` is free and open source software, see link:LICENSE[LICNESE] file.
 
@@ -45,6 +45,8 @@ https://pypi.org/ and you have to pass directory of the repository.
 git clone https://github.com/novakmi/pytest-pexpect.git
 pip3 install pytest-pexpect/
 ----
+NOTE: Or `pip3 install .` from `pytest-pexpect` directory.
+
 
 .Uninstall plugin.
 ----
@@ -133,16 +135,9 @@ pytest -o log_cli=true -o log_cli_level=WARNING  tests/
 
 == Links
 
-
-
-
-
-
-
-
-
-
-
-
 pytest     https://pytest.org +
 pexpect    https://github.com/pexpect/pexpect
+
+=== Similar projects
+
+Lux (LUcid eXpect scripting)    https://github.com/hawk/lux
