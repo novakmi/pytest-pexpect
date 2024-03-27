@@ -37,10 +37,13 @@ For history and releases see link:CHANGES.adoc[CHANGES.adoc] file.
 === `pip3` installation
 
 You can install `pytest-pexpect` plugin with `pip3`.
-Currently, the package is not hosted at
-https://pypi.org/ and you have to pass directory of the repository.
 
-.Clone repository and install the package.
+.Install from https://pypi.org/
+----
+pip3 install pytest-pexpect
+----
+
+.Clone repository and install from the directory.
 ----
 git clone https://github.com/novakmi/pytest-pexpect.git
 pip3 install pytest-pexpect/
