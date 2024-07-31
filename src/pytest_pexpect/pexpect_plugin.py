@@ -159,7 +159,7 @@ class Pexpect(object):
 
         log.debug(
             "<== self.request=%r self.shell=%s self.name=%s"
-            " self.debug=%s self.dry_run=%s",
+            " self.dry_run=%s",
             self.request, self.shell, self.name, self.dry_run)
 
     def set_name(self, name):
