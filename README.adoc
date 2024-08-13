@@ -59,7 +59,7 @@ pip3 uninstall pytest-pexpect
 === `PYTHONPATH` installation
 
 Set PYTHONPATH to  `pytest-pexpect/src` directory
-(e.g. `export PYTHONPATH=~/pytest-pexpect/src:$PYTHONPATH`).
+(e.g. `export PYTHONPATH=./src:$PYTHONPATH`).
 
 Add into your `conftest.py` line
 [source, python]
@@ -126,7 +126,7 @@ Run  `pytest` tests
 
 [source,bash]
 ----
-pytest -o log_cli=true -o log_cli_level=WARNING  tests/
+pytest -o log_cli=true -o log_cli_level=DEBUG tests/
 ----
 
 == Planned features
