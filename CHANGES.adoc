@@ -1,3 +1,18 @@
+=== 2025-09-03  0.3.0
+
+* Fixture refactoring and API improvements
+* Replaced `make_pexpects` and `make_pexpect_shells` with unified `pexpect_factory` fixture
+* Fixed integer division bug in `_sleep` method for proper Python 3 compatibility
+* Fixed mutable default arguments issue in `make_shell` method
+* Improved resource management with context managers for file operations
+* Enhanced logging throughout the codebase for better debugging
+* Added comprehensive test coverage for shell creation functionality
+* Improved type safety and error handling
+* Added validation tests for edge cases and error conditions
+* Updated existing tests to use new unified fixture API
+* Better separation of concerns in fixture design
+* Enhanced documentation with detailed usage examples and migration guide
+
 === 2024-08-13  0.2.0
 
 * fix for debug levels

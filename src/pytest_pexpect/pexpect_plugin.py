@@ -1,17 +1,18 @@
 import logging
 import os
 from dataclasses import dataclass
-from typing import List, Tuple, Union
+from typing import Any, Callable, Generator, IO, List, Optional, Tuple, Union
+from types import CodeType
 
 import pexpect
 import pytest
 import time
 
 log = logging.getLogger(__name__)
-debug_sleep = False
+debug_sleep: bool = False
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     log.debug("==> pytest_addoption")
 
     parser.addoption('--pexpect-dry-run', action='store_true',
@@ -21,7 +22,7 @@ def pytest_addoption(parser):
     log.debug("<== pytest_addoption")
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     log.debug("==> pytest_configure")
 
     Pexpect.dry_run = config.option.pexpect_dry_run
@@ -33,20 +34,21 @@ def pytest_configure(config):
 @dataclass
 class ShellParams:
     name: str = "shell"
-    env: str = None
+    env: Optional[str] = None
     cd_to_dir: str = "."
 
 
 class PexpectException(Exception):
 
-    def __init__(self, message="This is a pytest-pexpect exception"):
+    def __init__(self,
+                 message: str = "This is a pytest-pexpect exception") -> None:
         self.message = message
         super().__init__(self.message)
 
 
 class PexpectForbiddenPatternException(PexpectException):
 
-    def __init__(self, pattern: str, expected: str = None):
+    def __init__(self, pattern: str, expected: Optional[str] = None) -> None:
         self.message = f"Forbidden pattern detected: {pattern}"
         if expected is not None:
             self.message += f", expected {expected}"
@@ -54,10 +56,10 @@ class PexpectForbiddenPatternException(PexpectException):
 
 
 class Pexpect(object):
-    dry_run = False
+    dry_run: bool = False
 
     @staticmethod
-    def r__str__(obj):
+    def r__str__(obj: Any) -> str:
         """This returns a human-readable string that represents the state of
         the object. """
         import pexpect
@@ -88,7 +90,7 @@ class Pexpect(object):
         return '\n'.join(s)
 
     @staticmethod
-    def __nodeid_to_path(node_id):
+    def __nodeid_to_path(node_id: str) -> str:
         log.debug("==> __node_id_to_path node_id=%s" % node_id)
 
         node_id = node_id.replace("(", "")
@@ -100,17 +102,18 @@ class Pexpect(object):
         return node_id
 
     @staticmethod
-    def _sleep(t, text=None, dry_run=False):
+    def _sleep(t: Union[int, float], text: Optional[str] = None,
+               dry_run: bool = False) -> None:
         logtext = ""
         if text is not None:
             logtext = "(" + text + ") "
         log.debug("    sleep %d sec %s...", t, logtext)
         if not dry_run:
             if debug_sleep:
-                n = t / 5  # 1 dot every 5 sec.
+                n = t // 5  # 1 dot every 5 sec.
                 t2 = t % 5
                 import sys
-                for i in range(n):
+                for i in range(int(n)):
                     time.sleep(5)
                     sys.stdout.write(".")
                     sys.stdout.flush()
@@ -121,11 +124,14 @@ class Pexpect(object):
                 time.sleep(t)
 
     @staticmethod
-    def pexpect_spawn(command, args=None, timeout=30, maxread=2000,
-                      search_window_size=None, logfile=None, cwd=None,
-                      env=None,
-                      ignore_sighup=True, str_override=None,
-                      dry_run=False):
+    def pexpect_spawn(command: str, args: Optional[List[str]] = None,
+                      timeout: int = 30, maxread: int = 2000,
+                      search_window_size: Optional[int] = None,
+                      logfile: Optional[IO] = None, cwd: Optional[str] = None,
+                      env: Optional[dict] = None,
+                      ignore_sighup: bool = True,
+                      str_override: Optional[CodeType] = None,
+                      dry_run: bool = False) -> Optional[pexpect.spawn]:
         if args is None:
             args = []
         log.debug("==> Pexpect.pexpect_spawn command=%s timeout=%s ",
@@ -148,29 +154,32 @@ class Pexpect(object):
         log.debug("<== Pexpect.pexpect_spawn")
         return spawn
 
-    def __init__(self, request, name=None, shell=None):
+    def __init__(self, request: pytest.FixtureRequest,
+                 name: Optional[str] = None,
+                 shell: Optional[pexpect.spawn] = None) -> None:
         log.debug("==> Pexpect __init__ request=%s shell=%s name=%s" % (
             request, shell, name))
 
-        self.shell = shell
+        self.shell: Optional[pexpect.spawn] = shell
         self.set_name(name)
-        self.dry_run = Pexpect.dry_run
-        self.request = request
+        self.dry_run: bool = Pexpect.dry_run
+        self.request: pytest.FixtureRequest = request
 
         log.debug(
             "<== self.request=%r self.shell=%s self.name=%s"
             " self.dry_run=%s",
             self.request, self.shell, self.name, self.dry_run)
 
-    def set_name(self, name):
+    def set_name(self, name: Optional[str]) -> None:
         log.debug("==> set_name")
 
-        self.name = name
+        self.name: Optional[str] = name
 
         log.debug("<== set_name")
 
-    def pexpect_shell(self, shell_cmd="/bin/bash --noprofile",
-                      cd_to_dir=".", env=None, timeout=30):
+    def pexpect_shell(self, shell_cmd: str = "/bin/bash --noprofile",
+                      cd_to_dir: str = ".", env: Optional[str] = None,
+                      timeout: int = 30) -> 'Pexpect':
         log.debug("==> shell_cmd=%s cd_to_dir=%s env=%s",
                   shell_cmd, cd_to_dir, env)
 
@@ -193,7 +202,7 @@ class Pexpect(object):
         log.debug("<==")
         return self
 
-    def nodeid_path(self):
+    def nodeid_path(self) -> str:
         log.debug("==> nodeid_path self.request.node.nodeid=%s",
                   self.request.node.nodeid)
 
@@ -202,29 +211,30 @@ class Pexpect(object):
         log.debug("<== ret=%s", ret)
         return ret
 
-    def get_tst_dir(self):
+    def get_tst_dir(self) -> str:
         tst_dir = f"logs/{self.nodeid_path()}"
         return tst_dir
 
-    def make_tst_dir(self):
+    def make_tst_dir(self) -> None:
         tst_dir = self.get_tst_dir()
         if not os.path.exists(tst_dir):
             os.makedirs(tst_dir)
 
-    def open_log_file(self, name):
+    def open_log_file(self, name: Optional[str]) -> IO:
         self.make_tst_dir()
         logname = f"{self.get_tst_dir()}/{name}.log"
         log.debug("Using logname %s" % logname)
         logf = open(logname, 'w')
         return logf
 
-    def write_file_to_tst_dir(self, name, text):
+    def write_file_to_tst_dir(self, name: str, text: str) -> None:
         if not self.dry_run:
-            file = open(f"{self.get_tst_dir()}/{name}", "w")
-            file.write(text)
-            file.close()
+            with open(f"{self.get_tst_dir()}/{name}", "w") as file:
+                file.write(text)
 
-    def make_shell(self, params=ShellParams()):
+    def make_shell(self, params: Optional[ShellParams] = None) -> 'Pexpect':
+        if params is None:
+            params = ShellParams()
         log.debug("==> params=%s", params)
 
         self.set_name(params.name)
@@ -235,7 +245,8 @@ class Pexpect(object):
 
     def expect(self, pattern: Union[str, List[str]], timeout: int = -1,
                searchwindowsize: int = -1, async_: bool = False,
-               forbidden_patterns: List = None, **kw):
+               forbidden_patterns: Optional[List[str]] = None,
+               **kw: Any) -> int:
         """
         A function for handling expected patterns with optional parameters
         for timeout, search window size, and asynchronous processing.
@@ -273,18 +284,18 @@ class Pexpect(object):
         log.debug("<== expect %s", pattern)
         return ret
 
-    def e(self, *args, **kwargs):
+    def e(self, *args: Any, **kwargs: Any) -> int:
         """
         Alias for expect
         """
         return self.expect(*args, **kwargs)
 
-    def expect_prompt(self, timeout=-1):
+    def expect_prompt(self, timeout: int = -1) -> None:
         if not self.dry_run:
             log.debug("timeout=%s", timeout)
             self.shell.expect(r"\$|#", timeout=timeout)
 
-    def close(self, force=True):
+    def close(self, force: bool = True) -> None:
         if not self.dry_run and self.shell is not None:
             try:
                 self.shell.close(force)
@@ -296,7 +307,7 @@ class Pexpect(object):
                 except Exception:
                     log.warning("Failed to close shell, IGNORING!")
 
-    def send(self, s=''):
+    def send(self, s: str = '') -> int:
         log.debug("==> send %s", s)
         ret = 0
 
@@ -306,12 +317,15 @@ class Pexpect(object):
         log.debug("<== ret %s", ret)
         return ret
 
-    def sendline(self, s: str = '', expect: Union[str, List[str]] = None,
+    def sendline(self, s: str = '',
+                 expect: Optional[Union[str, List[str]]] = None,
                  timeout: int = -1, searchwindowsize: int = -1,
-                 async_: bool = False, forbidden_patterns: List = None, **kw):
+                 async_: bool = False,
+                 forbidden_patterns: Optional[List[str]] = None,
+                 **kw: Any) -> int:
         """
         Send a line to the shell.
-        Optionally perform expext
+        Optionally perform expect
         Does nothing if dry_run is true.
         :param s: a line string
         :see: self.expect
@@ -332,13 +346,13 @@ class Pexpect(object):
         log.debug("<== ret %s", ret)
         return ret
 
-    def s(self, *args, **kwargs):
+    def s(self, *args: Any, **kwargs: Any) -> int:
         """
         Alias for sendline
         """
         return self.sendline(*args, **kwargs)
 
-    def sendcontrol(self, char):
+    def sendcontrol(self, char: str) -> int:
         log.debug("==> sendcontrol %c", char)
         ret = 0
 
@@ -348,7 +362,7 @@ class Pexpect(object):
         log.debug("<== ret %s", ret)
         return ret
 
-    def flush(self):
+    def flush(self) -> None:
         log.debug("==> flush")
 
         if not self.dry_run:
@@ -356,15 +370,18 @@ class Pexpect(object):
 
         log.debug("<== flush")
 
-    def do_sleep(self, t, text=None):
+    def do_sleep(self, t: Union[int, float],
+                 text: Optional[str] = None) -> None:
         Pexpect._sleep(t, text, dry_run=self.dry_run)
 
 
 @pytest.fixture
-def pexpect_object(request, name: str = "pexpect") -> Pexpect:
+def pexpect_object(request: pytest.FixtureRequest, name: str = "pexpect") -> (
+        Generator)[Pexpect, None, None]:
     """
     A fixture that returns a Pexpect object.
     Closes the Pexpect object after the test.
+    :param request: pytest request object
     :param name: The name of the Pexpect object.
     :yield: A Pexpect object.
     """
@@ -379,7 +396,8 @@ def pexpect_object(request, name: str = "pexpect") -> Pexpect:
 
 
 @pytest.fixture
-def pexpect_shell(pexpect_object, shell) -> Pexpect:
+def pexpect_shell(pexpect_object: Pexpect, shell: ShellParams) -> (
+        Generator)[Pexpect, None, None]:
     """
     A fixture that creates a pexpect shell using the provided shell parameters.
     Closes the Pexpect object after the test.
@@ -397,84 +415,136 @@ def pexpect_shell(pexpect_object, shell) -> Pexpect:
 
 
 @pytest.fixture
-def make_pexpects(request):
+def pexpect_factory(request: pytest.FixtureRequest) -> (
+        Generator)[Callable[..., Union[Pexpect, Tuple[Pexpect, ...]]], None, None]:
     """
-    A fixture that creates factory functions that create Pexpect objects.
-    Closes the Pexpect objects after the test.
-    :param request:
-    :yield: yields a factory function that creates Pexpect objects.
+    A unified factory fixture that creates Pexpect objects with optional shell initialization.
+
+    This fixture provides a flexible way to create one or more Pexpect objects for testing,
+    with optional automatic shell initialization. It handles proper cleanup of all created
+    objects automatically when the test completes.
+
+    :param request: pytest request object (automatically injected)
+    :yield: Factory function that creates Pexpect objects
+
+    Usage Examples:
+    ---------------
+
+    # Create a single basic Pexpect object (no shell)
+    def test_basic(pexpect_factory):
+        pexpect_obj = pexpect_factory()
+        # Use pexpect_obj...
+
+    # Create multiple basic Pexpect objects
+    def test_multiple_basic(pexpect_factory):
+        obj1, obj2, obj3 = pexpect_factory(n=3)
+        # Use obj1, obj2, obj3...
+
+    # Create a single shell-initialized object
+    def test_single_shell(pexpect_factory):
+        shell_obj = pexpect_factory(shell_params=ShellParams(name="test_shell"))
+        # shell_obj is ready to use with an active shell
+
+    # Create multiple objects with same shell configuration
+    def test_multiple_same_shell(pexpect_factory):
+        shell1, shell2 = pexpect_factory(n=2, shell_params=ShellParams(cd_to_dir="/tmp"))
+        # Both shells start in /tmp directory
+
+    # Create multiple objects with different shell configurations
+    def test_multiple_different_shells(pexpect_factory):
+        params = [
+            ShellParams(name="shell1", cd_to_dir="/home"),
+            ShellParams(name="shell2", cd_to_dir="/tmp", env="export DEBUG=1")
+        ]
+        shell1, shell2 = pexpect_factory(shell_params=params)
+        # shell1 starts in /home, shell2 starts in /tmp with DEBUG env var
     """
-    log.debug("==> make_pexpects")
+    log.debug("==> pexpect_factory")
     created_pexpects: List[Pexpect] = []
 
-    def _make_pexpects(n: int = 1) -> Union[Pexpect, Tuple[Pexpect, ...]]:
+    def _create_pexpects(n: int = 1, shell_params: Optional[Union[ShellParams, List[ShellParams]]] = None) -> (
+            Union)[Pexpect, Tuple[Pexpect, ...]]:
         """
-        A fixture function that creates Pexpect objects.
-        It takes an optional parameter 'n' to specify the number of
-        Pexpect objects to create.
-        It returns a single Pexpect object if 'n' is 1,
-        otherwise it returns a tuple of Pexpect objects.
+        Factory function to create Pexpect objects with optional shell initialization.
 
-        :param n: The number of Pexpect objects to create.
-        :return: A Pexpect object or a tuple of Pexpect objects.
+        :param n: Number of Pexpect objects to create (ignored if shell_params is a list)
+        :param shell_params: Shell configuration options:
+            - None: Create n basic Pexpect objects without shell initialization
+            - ShellParams: Create n Pexpect objects, all with the same shell configuration
+            - List[ShellParams]: Create len(shell_params) objects, each with its own configuration
+                                (the 'n' parameter is ignored in this case)
+
+        :return: Single Pexpect object if creating one, otherwise tuple of Pexpect objects
+
+        :raises ValueError: If n < 1 or if shell_params list is empty
         """
-        log.debug("==> n=%i", n)
+        if n < 1:
+            raise ValueError("Number of objects to create must be at least 1")
 
-        ret = tuple(Pexpect(request) for _ in range(n))
+        log.debug("==> _create_pexpects: n=%i, shell_params=%s", n,
+                  shell_params)
+
+        # Determine how many objects to create and their configurations
+        configs: List[Optional[ShellParams]]
+        if isinstance(shell_params, list):
+            if not shell_params:
+                raise ValueError("shell_params list cannot be empty")
+            # List of shell params - create one object per param
+            configs = shell_params
+            count = len(shell_params)
+            log.debug(
+                "Creating %d objects with individual shell configurations",
+                count)
+        elif shell_params is not None:
+            # Single shell param - create n objects with same config
+            configs = [shell_params] * n
+            count = n
+            log.debug("Creating %d objects with same shell configuration",
+                      count)
+        else:
+            # No shell params - create n basic objects
+            configs = [None] * n
+            count = n
+            log.debug("Creating %d basic objects without shell initialization",
+                      count)
+
+        # Create the Pexpect objects
+        ret: List[Pexpect] = []
+        for i in range(count):
+            log.debug("Creating Pexpect object %d/%d", i + 1, count)
+            pexpect_obj = Pexpect(request)
+
+            # Initialize shell if config provided
+            if configs[i] is not None:
+                log.debug("Initializing shell for object %d with params: %s",
+                          i + 1, configs[i])
+                pexpect_obj.make_shell(configs[i])
+
+            ret.append(pexpect_obj)
+
+        # Track for cleanup
         created_pexpects.extend(ret)
-        ret = ret[0] if len(ret) == 1 else ret
+        log.debug("Tracking %d objects for cleanup", len(ret))
 
-        log.debug("<== ret=%r", ret)
-        return ret
+        # Return single object or tuple based on count
+        result: Union[Pexpect, Tuple[Pexpect, ...]] = ret[
+            0] if count == 1 else tuple(ret)
 
-    yield _make_pexpects
-    log.debug("make_pexpect after yield created_pexpects=%r",
-              created_pexpects)
+        log.debug("<== _create_pexpects: created %s", type(result).__name__)
+        return result
 
-    for pe in created_pexpects:
-        log.debug("closing=%r", pe)
-        pe.close()
+    yield _create_pexpects
 
-    log.debug("<== make_pexpects")
+    log.debug("pexpect_factory teardown: cleaning up %d objects",
+              len(created_pexpects))
 
+    # Cleanup all created objects
+    for i, pe in enumerate(created_pexpects):
+        log.debug("Closing Pexpect object %d/%d: %r", i + 1,
+                  len(created_pexpects), pe)
+        try:
+            pe.close()
+        except Exception as e:
+            log.warning("Failed to close Pexpect object %d: %s", i + 1, e)
 
-@pytest.fixture
-def make_pexpect_shells(request, make_pexpects):
-    """
-    A fixture that creates factory functions that create Pexpect objects
-    initialized with shell parameters.
-    Closes the Pexpect objects after the test.
-    :param request:
-    :param make_pexpects: The fixture that creates Pexpect objects
-    :yield: yields a factory function that creates Pexpect objects
-    """
-    log.debug("==> make_pexpect_shells")
-
-    def _make_pexpect_shells(params=None) \
-            -> Union[Pexpect, Tuple[Pexpect, ...]]:
-        """
-        A fixture function that creates Pexpect objects
-        initialized with shell parameters.
-        It takes an optional parameter 'params' representing the List of
-        ShellParams to use for each Pexpect object
-        (defaults to [ShellParams()]).
-        It returns a single Pexpect object if params contains a single
-        ShellParams, otherwise it returns a tuple of Pexpect objects.
-        :param params: The List of ShellParams to use for each Pexpect object.
-        :return: A Pexpect object, or a tuple of Pexpect objects.
-        """
-        if params is None:
-            params = [ShellParams()]
-        log.debug("==> params=%s", params)
-
-        ret = [make_pexpects() for _ in range(len(params))]
-        for s, param in zip(ret, params):
-            s.make_shell(param)
-        ret = ret[0] if len(ret) == 1 else tuple(ret)
-
-        log.debug("<== ret=%r", ret)
-        return ret
-
-    yield _make_pexpect_shells
-
-    log.debug("<== make_pexpect_shells")
+    log.debug("<== pexpect_factory: cleanup complete")
